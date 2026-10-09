@@ -1594,18 +1594,58 @@ function celebrate() {
   confetti({ particleCount: 80, spread: 70, startVelocity: 38, origin: { y: .3 }, colors: ['#dcbc7c', '#f5e6bd', '#2f6b2a', '#b3121a'], zIndex: 40 });
 }
 
+async function upload(blob) {
+  const fd = new FormData();
+  fd.append('file', blob);
+  fd.append('upload_preset', CONFIG.uploadPreset);
+  fd.append('tags', 'laurea');
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${CONFIG.cloudName}/image/upload`, { method: 'POST', body: fd, signal: AbortSignal.timeout ? AbortSignal.timeout(25000) : undefined });
+  if (!res.ok) throw new Error(res.status);
+}
+
+// ---- photos that can't be sent wait on the phone and leave by themselves when the network comes back
+// (kept as bytes, not Blobs: older iPhones can't store Blobs in IndexedDB)
+const coda = (mode, fn) => new Promise((ok, ko) => {
+  const o = indexedDB.open('laurea', 1);
+  o.onupgradeneeded = () => o.result.createObjectStore('coda', { autoIncrement: true });
+  o.onerror = () => ko(o.error);
+  o.onsuccess = () => {
+    const tx = o.result.transaction('coda', mode), q = fn(tx.objectStore('coda'));
+    tx.oncomplete = () => { o.result.close(); ok(q && q.result); };
+    tx.onerror = tx.onabort = () => { o.result.close(); ko(tx.error); };
+  };
+});
+let svuotando = false;
+async function svuotaCoda() {
+  if (svuotando || !CONFIG.cloudName || !window.indexedDB) return;
+  svuotando = true;
+  try {
+    for (const k of await coda('readonly', s => s.getAllKeys())) {
+      const f = await coda('readonly', s => s.get(k));
+      await upload(new Blob([f.buf], { type: f.type }));
+      await coda('readwrite', s => s.delete(k));
+    }
+  } catch (e) {} finally { svuotando = false; }
+}
+addEventListener('online', svuotaCoda);
+setInterval(svuotaCoda, 30000);
+svuotaCoda();
+
 async function send() {
   const btn = $('send');
   btn.disabled = true;
   btn.innerHTML = '<span class="spin"></span> Invio…';
+  let inCoda = false;
   try {
     if (CONFIG.cloudName) {
-      const fd = new FormData();
-      fd.append('file', current.blob);
-      fd.append('upload_preset', CONFIG.uploadPreset);
-      fd.append('tags', 'laurea');
-      const res = await fetch(`https://api.cloudinary.com/v1_1/${CONFIG.cloudName}/image/upload`, { method: 'POST', body: fd });
-      if (!res.ok) throw new Error(res.status);
+      try {
+        if (!navigator.onLine) throw new Error('offline');
+        await upload(current.blob);
+      } catch (e) {
+        const buf = await current.blob.arrayBuffer();
+        await coda('readwrite', s => s.add({ buf, type: current.blob.type }));
+        inCoda = true;
+      }
     }
     figura++;
     try { localStorage.setItem('figura', figura); } catch (e) {}
@@ -1613,7 +1653,8 @@ async function send() {
     thumb.style.backgroundImage = `url("${current.url}")`;
     thumb.classList.add('has');
     leaveReview();
-    toast(CONFIG.cloudName ? `Figura ${figura} aggiunta all'album` : 'Modalità prova: foto non inviata');
+    toast(inCoda ? 'Niente rete: la foto è salvata e partirà da sola appena torna la connessione'
+      : CONFIG.cloudName ? `Figura ${figura} aggiunta all'album` : 'Modalità prova: foto non inviata', inCoda ? 4500 : 2600);
     celebrate();
   } catch (e) {
     toast('Invio non riuscito. Controlla la connessione e riprova.', 4000);
@@ -1664,6 +1705,7 @@ document.addEventListener('visibilitychange', () => {
 
 // Warm up the effects once π has formed, so the camera opens ready.
 setTimeout(() => initAR().catch(() => {}), 4500);
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 
 // ---------------------------------------------------------------- tre home, perché la festeggiata scelga
 // "Cambia stile" passa dall'una all'altra; la scelta resta su questo telefono, e ?stile=2 ne apre una direttamente.
