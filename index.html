@@ -238,7 +238,27 @@ h1 { margin: 0; text-wrap: balance; font: 400 clamp(3rem, 15.5vw, 4.4rem)/1.02 v
   display: grid; place-items: center; cursor: pointer; text-decoration: none; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .55));
 }
 .icon svg { width: 26px; height: 26px }
-.icon[aria-pressed="false"] { opacity: .55 }
+/* The frame switch says what it does: an ivory pill when the photo gets the frame, a dark one when it doesn't. */
+.cornice-btn {
+  display: flex; align-items: center; gap: 7px; min-height: 40px; padding: 0 14px 0 11px; margin: 2px; border-radius: 999px; cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, .45); background: rgba(0, 0, 0, .38); color: #fff; font: 600 .86rem/1 var(--sys);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); transition: background .2s, color .2s;
+}
+.cornice-btn svg { width: 20px; height: 20px; flex: none }
+.cornice-btn[aria-pressed="true"] { background: var(--carta); color: var(--inchiostro); border-color: var(--carta) }
+/* Preview of the paper the photo is mounted on: same margins as frame(), caption in the bottom band. */
+.vf { container-type: inline-size }
+.carta {
+  position: absolute; inset: 0; pointer-events: none; border: 0 solid #f6f0e4; border-radius: inherit;
+  border-width: 4cqw 4cqw 17cqw; display: flex; align-items: flex-end; justify-content: center;
+}
+.carta span {
+  position: absolute; left: 0; right: 0; bottom: -17cqw; padding: 0 64px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font: 3.6cqw/17cqw 'Latin Modern', Georgia, serif; color: #2a1a11; text-align: center;
+}
+.carta i { font-style: italic }
+.vf.incorniciata .vf-bottom { background: linear-gradient(transparent, rgba(0, 0, 0, .35)) top / 100% calc(100% - 17cqw) no-repeat }
+.vf.incorniciata .hint { visibility: hidden }
 .chip {
   position: absolute; top: 16px; left: 50%; transform: translateX(-50%); white-space: nowrap;
   padding: 6px 12px; border-radius: 999px; background: rgba(0, 0, 0, .5); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
@@ -397,12 +417,14 @@ h1 { margin: 0; text-wrap: balance; font: 400 clamp(3rem, 15.5vw, 4.4rem)/1.02 v
     <canvas id="gl"></canvas>
     <canvas id="fun"></canvas>
     <div class="flash" id="flash"></div>
+    <div class="carta" id="carta" aria-hidden="true"><span id="cartaTesto"></span></div>
     <div class="vf-top">
       <button class="icon" id="camClose" aria-label="Chiudi la fotocamera">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
       </button>
-      <button class="icon" id="frameToggle" aria-pressed="true" aria-label="Cornice con didascalia">
+      <button class="cornice-btn" id="frameToggle" aria-pressed="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="1.5"/><rect x="6.5" y="5.5" width="11" height="10"/><path d="M8.5 18.3h7" stroke-linecap="round"/></svg>
+        <span id="frameLabel">Cornice: sì</span>
       </button>
     </div>
     <span class="chip" id="chip" hidden></span>
@@ -1649,6 +1671,7 @@ async function send() {
     }
     figura++;
     try { localStorage.setItem('figura', figura); } catch (e) {}
+    cornice();
     const thumb = $('thumb');
     thumb.style.backgroundImage = `url("${current.url}")`;
     thumb.classList.add('has');
@@ -1689,9 +1712,18 @@ $('flip').onclick = async () => {
   }
   b.disabled = false;
 };
+function cornice() {
+  $('frameToggle').setAttribute('aria-pressed', frameOn);
+  $('frameLabel').textContent = frameOn ? 'Cornice: sì' : 'Cornice: no';
+  $('carta').hidden = !frameOn;
+  $('vf').classList.toggle('incorniciata', frameOn);
+  $('cartaTesto').innerHTML = `Figura ${figura + 1}: la laurea di <i></i>`;
+  $('cartaTesto').lastChild.textContent = CONFIG.nome;
+}
+cornice();
 $('frameToggle').onclick = () => {
   frameOn = !frameOn;
-  $('frameToggle').setAttribute('aria-pressed', frameOn);
+  cornice();
   toast(frameOn ? 'Foto con cornice e didascalia' : 'Foto senza cornice', 1600);
 };
 $('reviewBack').onclick = $('retake').onclick = leaveReview;
