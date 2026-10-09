@@ -900,6 +900,13 @@ const memo = {
   get(k, d) { try { const v = localStorage.getItem('festa-' + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem('festa-' + k, JSON.stringify(v)); } catch (e) {} },
 };
+// ?azzera, after the tests: this phone forgets its quiz mark, hunt, signature and any photo still waiting to leave
+if (new URLSearchParams(location.search).has('azzera')) {
+  try { for (const k of Object.keys(localStorage)) if (k.startsWith('festa-')) localStorage.removeItem(k); } catch (e) {}
+  await new Promise(ok => { try { const d = indexedDB.deleteDatabase('laurea'); d.onsuccess = d.onerror = d.onblocked = ok; } catch (e) { ok(); } });
+  location.replace(location.pathname);
+  await new Promise(() => {}); // the page reopens clean; nothing below runs
+}
 const ospite = memo.get('ospite', '') || Math.random().toString(36).slice(2, 10);
 memo.set('ospite', ospite);
 
