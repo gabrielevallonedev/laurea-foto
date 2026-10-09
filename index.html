@@ -422,9 +422,9 @@ h1 { margin: 0; text-wrap: balance; font: 400 clamp(3rem, 15.5vw, 4.4rem)/1.02 v
       <button class="icon" id="camClose" aria-label="Chiudi la fotocamera">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
       </button>
-      <button class="cornice-btn" id="frameToggle" aria-pressed="true">
+      <button class="cornice-btn" id="frameToggle" aria-pressed="false">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="1.5"/><rect x="6.5" y="5.5" width="11" height="10"/><path d="M8.5 18.3h7" stroke-linecap="round"/></svg>
-        <span id="frameLabel">Cornice: sì</span>
+        <span id="frameLabel">Cornice: no</span>
       </button>
     </div>
     <span class="chip" id="chip" hidden></span>
@@ -498,7 +498,7 @@ const DEBUG = location.search.includes('debug'); // ?debug shows the invisible h
 
 const $ = id => document.getElementById(id);
 const video = $('video'), pre = $('pre'), gl = $('gl'), vf = $('vf');
-let screen = 'home', stream = null, facing = 'user', frameOn = true;
+let screen = 'home', stream = null, facing = 'user', frameOn = false;
 let effect = EFFECTS[1], ar = null, arPromise = null, lastVideoTime = -1, lastFaceAt = 0, lastHairAt = 0, frames = 0;
 let current = null; // { blob, url, from }
 // which of the three homes is showing (see "tre home" below)
